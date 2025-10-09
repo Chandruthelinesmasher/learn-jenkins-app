@@ -31,6 +31,9 @@ pipeline {
                         echo "❌ index.html not found in build directory"
                         exit 1
                     fi
+
+                    echo "Running unit tests..."
+                    npm test
                 '''
             }
         }
