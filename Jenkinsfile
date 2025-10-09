@@ -30,18 +30,13 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo "Test stage"
-                    if [ -f build/index.html ]; then
-                        echo "✅ index.html exists in build directory"
-                    else
-                        echo "❌ index.html not found in build directory"
-                        exit 1
-                    fi
-
-                    echo "Running unit tests..."
+                    test -f build/index.html
                     npm test
                 '''
             }
         }
     }
 }
+
+
+
