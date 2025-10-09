@@ -26,13 +26,13 @@ pipeline {
                 sh '''
                     echo "Test stage"
                     if [ -f build/index.html ]; then
-                        echo ✅ index.html exists in build directory
+                        echo "✅ index.html exists in build directory"
                     else
-                        echo ❌ index.html not found in build directory
+                        echo "❌ index.html not found in build directory"
                         exit 1
                     fi
 
-                    echo Running unit tests...
+                    echo "Running unit tests..."
                     npm test
                 '''
             }
