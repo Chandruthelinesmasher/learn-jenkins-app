@@ -2,23 +2,22 @@ pipeline {
     agent any
 
     stages {
+
         stage('Build') {
             agent {
                 docker {
                     image 'node:18-alpine'
                     reuseNode true
-                    args '-u root'
                 }
             }
             steps {
                 sh '''
-                    echo "Cleaning node_modules only..."
-                    rm -rf node_modules
                     ls -la
                     node --version
                     npm --version
                     npm ci
                     npm run build
+                    ls -la
                 '''
             }
         }
@@ -30,18 +29,18 @@ pipeline {
                         docker {
                             image 'node:18-alpine'
                             reuseNode true
-                            args '-u root'
                         }
                     }
+
                     steps {
                         sh '''
-                            npm ci
+                            #test -f build/index.html
                             npm test
                         '''
                     }
                     post {
                         always {
-                            junit 'test-results/junit.xml'
+                            junit 'jest-results/junit.xml'
                         }
                     }
                 }
@@ -51,28 +50,21 @@ pipeline {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
                             reuseNode true
-                            args '-u root'
                         }
                     }
+
                     steps {
                         sh '''
-                            npm ci
-                            npx serve -s build &
-                            echo "Waiting for server..."
-                            sleep 5
-                            npx playwright test --reporter=html
+                            npm install serve
+                            node_modules/.bin/serve -s build &
+                            sleep 10
+                            npx playwright test  --reporter=html
                         '''
                     }
+
                     post {
                         always {
-                            publishHTML([
-                                allowMissing: true,
-                                alwaysLinkToLastBuild: true,
-                                keepAll: true,
-                                reportDir: 'playwright-report',
-                                reportFiles: 'index.html',
-                                reportName: 'Playwright HTML Report'
-                            ])
+                            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Playwright HTML Report', reportTitles: '', useWrapperFileDirectly: true])
                         }
                     }
                 }
@@ -84,7 +76,6 @@ pipeline {
                 docker {
                     image 'node:18-alpine'
                     reuseNode true
-                    args '-u root'
                 }
             }
             steps {
