@@ -1,12 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        // Securely load Netlify credentials from Jenkins
-        NETLIFY_AUTH_TOKEN = credentials('netlify-auth-token')   // Add this in Jenkins Credentials
-        NETLIFY_SITE_ID    = credentials('netlify-site-id')      // Add this in Jenkins Credentials
-    }
-
     stages {
 
         stage('Build') {
@@ -18,20 +12,19 @@ pipeline {
                 }
             }
             steps {
-                echo '🛠️ Starting Build Stage...'
                 sh '''
+                    ls -la
                     node --version
                     npm --version
                     npm ci
                     npm run build
-                    echo "✅ Build completed successfully"
+                    ls -la
                 '''
             }
         }
 
         stage('Tests') {
             parallel {
-
                 stage('Unit tests') {
                     agent {
                         docker {
@@ -41,12 +34,12 @@ pipeline {
                         }
                     }
                     steps {
-                        echo '🧪 Running Unit Tests...'
-                        sh 'npm test'
+                        sh '''
+                            npm test -- --ci --reporters=default --reporters=jest-junit
+                        '''
                     }
                     post {
                         always {
-                            echo '📄 Publishing Unit Test Results...'
                             junit 'jest-results/junit.xml'
                         }
                     }
@@ -61,25 +54,22 @@ pipeline {
                         }
                     }
                     steps {
-                        echo '🎭 Running End-to-End Tests...'
                         sh '''
                             npm install serve
-                            npx serve -s build &
+                            node_modules/.bin/serve -s build &
                             sleep 10
                             npx playwright test --reporter=html
                         '''
                     }
                     post {
                         always {
-                            echo '📊 Publishing Playwright HTML Report...'
                             publishHTML([
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: false,
                                 keepAll: true,
                                 reportDir: 'playwright-report',
                                 reportFiles: 'index.html',
-                                reportName: 'Playwright HTML Report',
-                                useWrapperFileDirectly: true
+                                reportName: 'Playwright HTML Report'
                             ])
                         }
                     }
@@ -90,37 +80,30 @@ pipeline {
         stage('Deploy') {
             agent {
                 docker {
-                    // Use Debian-based Node image for proper build tools
                     image 'node:18'
                     args '-u root:root'
                     reuseNode true
                 }
             }
+            environment {
+                NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+                NETLIFY_SITE_ID = '74da41cd-1adf-407d-935e-94ee5855477c'
+            }
             steps {
-                echo '🚀 Starting Deployment Stage...'
                 sh '''
-                    apt-get update && apt-get install -y python3 make g++ curl
+                    echo "🚀 Installing Netlify CLI..."
                     npm install -g netlify-cli@20.1.1
 
-                    echo "🔑 Authenticating and deploying to Netlify..."
+                    echo "🔑 Deploying to Netlify..."
                     netlify deploy \
                       --dir=build \
                       --prod \
                       --auth=$NETLIFY_AUTH_TOKEN \
                       --site=$NETLIFY_SITE_ID
 
-                    echo "✅ Deployment to Netlify successful!"
+                    echo "✅ Deployment successful!"
                 '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo '🎉 Pipeline completed successfully!'
-        }
-        failure {
-            echo '❌ Pipeline failed. Check the logs above for details.'
         }
     }
 }
