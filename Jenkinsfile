@@ -11,12 +11,9 @@ pipeline {
             }
             steps {
                 sh '''
-                    ls -la
                     node --version
-                    npm --version
-                    npm ci
+                    npm ci --prefer-offline
                     npm run build
-                    ls -la
                 '''
             }
         }
@@ -30,8 +27,7 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo "Test stage"
-                    test -f build/index.html
+                    npm ci --prefer-offline
                     npm test
                 '''
             }
@@ -46,16 +42,13 @@ pipeline {
             }
             steps {
                 sh '''
-                    echo "Reinstalling dependencies for E2E..."
-                    npm ci
+                    npm ci --prefer-offline
 
-                    echo "Starting static server..."
                     npx serve -s build &
-                    echo "Waiting for server to start..."
-                    sleep 10
+                    echo "Waiting for server..."
+                    sleep 3
 
-                    echo "Running Playwright E2E tests..."
-                    npx playwright test --reporter=html
+                    npx playwright test --reporter=html,junit
                 '''
             }
         }
@@ -64,7 +57,12 @@ pipeline {
     post {
         always {
             junit 'test-results/junit.xml'
-            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, icon: '', keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'playwright HTML Report', reportTitles: '', useWrapperFileDirectly: true])
+            publishHTML([
+                allowMissing: false,
+                reportDir: 'playwright-report',
+                reportFiles: 'index.html',
+                reportName: 'Playwright Report'
+            ])
         }
     }
 }
