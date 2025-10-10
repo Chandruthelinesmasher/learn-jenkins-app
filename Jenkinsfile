@@ -7,16 +7,19 @@ pipeline {
             agent {
                 docker {
                     image 'node:18-alpine'
+                    args '-u root:root'
                     reuseNode true
                 }
             }
             steps {
                 sh '''
+                    echo "🛠️ Starting Build Stage..."
                     ls -la
                     node --version
                     npm --version
                     npm ci
                     npm run build
+                    echo "✅ Build completed successfully"
                     ls -la
                 '''
             }
@@ -24,22 +27,24 @@ pipeline {
 
         stage('Tests') {
             parallel {
+
                 stage('Unit tests') {
                     agent {
                         docker {
                             image 'node:18-alpine'
+                            args '-u root:root'
                             reuseNode true
                         }
                     }
-
                     steps {
                         sh '''
-                            #test -f build/index.html
+                            echo "🧪 Running Unit Tests..."
                             npm test
                         '''
                     }
                     post {
                         always {
+                            echo "📄 Publishing Unit Test Results..."
                             junit 'jest-results/junit.xml'
                         }
                     }
@@ -49,22 +54,31 @@ pipeline {
                     agent {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                            args '-u root:root'
                             reuseNode true
                         }
                     }
-
                     steps {
                         sh '''
+                            echo "🎭 Running End-to-End Tests..."
                             npm install serve
-                            node_modules/.bin/serve -s build &
+                            npx serve -s build &
                             sleep 10
-                            npx playwright test  --reporter=html
+                            npx playwright test --reporter=html
                         '''
                     }
-
                     post {
                         always {
-                            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Playwright HTML Report', reportTitles: '', useWrapperFileDirectly: true])
+                            echo "📊 Publishing Playwright HTML Report..."
+                            publishHTML([
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: false,
+                                keepAll: true,
+                                reportDir: 'playwright-report',
+                                reportFiles: 'index.html',
+                                reportName: 'Playwright HTML Report',
+                                useWrapperFileDirectly: true
+                            ])
                         }
                     }
                 }
@@ -75,15 +89,27 @@ pipeline {
             agent {
                 docker {
                     image 'node:18-alpine'
+                    args '-u root:root'
                     reuseNode true
                 }
             }
             steps {
                 sh '''
+                    echo "🚀 Starting Deployment Stage..."
                     npm install netlify-cli@20.1.1
-                    node_modules/.bin/netlify --version
+                    npx netlify --version
+                    echo "✅ Netlify CLI Installed Successfully"
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "🎉 Pipeline completed successfully!"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check logs above for errors."
         }
     }
 }
