@@ -14,9 +14,6 @@ pipeline {
                 sh '''
                     echo "Cleaning node_modules only..."
                     rm -rf node_modules
-                    ls -la
-                    node --version
-                    npm --version
                     npm ci
                     npm run build
                 '''
@@ -41,7 +38,7 @@ pipeline {
                     }
                     post {
                         always {
-                            junit 'test-results/junit.xml'
+                            junit 'junit.xml'  // ✅ Fixed path
                         }
                     }
                 }
@@ -58,8 +55,8 @@ pipeline {
                         sh '''
                             npm ci
                             npx serve -s build &
-                            echo "Waiting for server..."
-                            sleep 5
+                            echo "Waiting for server to start..."
+                            sleep 10  # ✅ Increased wait time
                             npx playwright test --reporter=html
                         '''
                     }
@@ -82,7 +79,7 @@ pipeline {
         stage('Deploy') {
             agent {
                 docker {
-                    image 'node:18-alpine'
+                    image 'node:18'  // ✅ Debian-based, not alpine
                     reuseNode true
                     args '-u root'
                 }
