@@ -45,7 +45,7 @@ pipeline {
                     npm ci --prefer-offline
 
                     npx serve -s build &
-                    echo "Waiting for server..."
+                    echo "Waiting for server to start..."
                     sleep 3
 
                     npx playwright test --reporter=html,junit
@@ -59,6 +59,8 @@ pipeline {
             junit 'test-results/junit.xml'
             publishHTML([
                 allowMissing: false,
+                alwaysLinkToLastBuild: true,   // required
+                keepAll: true,                 // required
                 reportDir: 'playwright-report',
                 reportFiles: 'index.html',
                 reportName: 'Playwright Report'
