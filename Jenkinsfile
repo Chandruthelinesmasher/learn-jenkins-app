@@ -56,7 +56,7 @@ pipeline {
                     steps {
                         sh '''
                             npm install serve
-                            node_modules/.bin/serve -s build &
+                            nohup npx serve -s build > serve.log 2>&1 &
                             sleep 10
                             npx playwright test --reporter=html
                         '''
@@ -104,6 +104,15 @@ pipeline {
                     echo "✅ Deployment successful!"
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo '🎉 Pipeline completed successfully — deployed to Netlify!'
+        }
+        failure {
+            echo '❌ Pipeline failed. Check logs above.'
         }
     }
 }
