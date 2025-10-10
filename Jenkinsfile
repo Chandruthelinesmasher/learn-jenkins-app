@@ -7,19 +7,18 @@ pipeline {
                 docker {
                     image 'node:18-alpine'
                     reuseNode true
-                    args '-u root'  // ✅ FIX: run as root
+                    args '-u root'
                 }
             }
             steps {
                 sh '''
-                    echo "Cleaning node_modules if exists..."
-                    rm -rf node_modules package-lock.json
+                    echo "Cleaning node_modules only..."
+                    rm -rf node_modules
                     ls -la
                     node --version
                     npm --version
                     npm ci
                     npm run build
-                    ls -la
                 '''
             }
         }
@@ -31,7 +30,7 @@ pipeline {
                         docker {
                             image 'node:18-alpine'
                             reuseNode true
-                            args '-u root'  // ✅ FIX
+                            args '-u root'
                         }
                     }
                     steps {
@@ -52,7 +51,7 @@ pipeline {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
                             reuseNode true
-                            args '-u root'  // ✅ Already good, but keep it
+                            args '-u root'
                         }
                     }
                     steps {
@@ -85,7 +84,7 @@ pipeline {
                 docker {
                     image 'node:18-alpine'
                     reuseNode true
-                    args '-u root'  // ✅ FIX
+                    args '-u root'
                 }
             }
             steps {
