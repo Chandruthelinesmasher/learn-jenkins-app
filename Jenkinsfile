@@ -7,14 +7,13 @@ pipeline {
                 docker {
                     image 'node:18-alpine'
                     reuseNode true
-                    args '-u root'  // ✅ FIX
+                    args '-u root'
                 }
             }
             steps {
                 sh '''
                     echo "Cleaning node_modules..."
                     rm -rf node_modules
-                    node --version
                     npm ci
                     npm run build
                 '''
@@ -28,7 +27,7 @@ pipeline {
                         docker {
                             image 'node:18-alpine'
                             reuseNode true
-                            args '-u root'  // ✅ FIX
+                            args '-u root'
                         }
                     }
                     steps {
@@ -39,7 +38,7 @@ pipeline {
                     }
                     post {
                         always {
-                            junit 'junit.xml'  // ✅ Default path for CRA + jest-junit
+                            junit 'junit.xml'
                         }
                     }
                 }
@@ -49,7 +48,7 @@ pipeline {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
                             reuseNode true
-                            args '-u root'  // ✅ Already good, but keep it
+                            args '-u root'
                         }
                     }
                     steps {
@@ -57,7 +56,7 @@ pipeline {
                             npm ci
                             npx serve -s build &
                             echo "Waiting for server..."
-                            sleep 10  // ✅ Increased wait
+                            sleep 10
                             npx playwright test --reporter=html
                         '''
                     }
@@ -80,8 +79,8 @@ pipeline {
         stage('Deploy') {
             agent {
                 docker {
-                    image 'node:18'  // ✅ Use Debian (not alpine) for sharp compatibility
-                    reuseNode true
+                    image 'node:18',      // Debian-based, not Alpine
+                    reuseNode true,
                     args '-u root'
                 }
             }
