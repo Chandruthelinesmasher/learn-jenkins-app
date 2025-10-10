@@ -46,9 +46,15 @@ pipeline {
             }
             steps {
                 sh '''
-                    npm install -g serve
-                    node_modules/.bin/serve -s build &
+                    echo "Reinstalling dependencies for E2E..."
+                    npm ci
+
+                    echo "Starting static server..."
+                    npx serve -s build &
+                    echo "Waiting for server to start..."
                     sleep 10
+
+                    echo "Running Playwright E2E tests..."
                     npx playwright test --reporter=html
                 '''
             }
