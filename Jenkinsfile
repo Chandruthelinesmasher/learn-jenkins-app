@@ -2,16 +2,18 @@ pipeline {
     agent any
 
     stages {
-
         stage('Build') {
             agent {
                 docker {
                     image 'node:18-alpine'
                     reuseNode true
+                    args '-u root'  // ✅ FIX: run as root
                 }
             }
             steps {
                 sh '''
+                    echo "Cleaning node_modules if exists..."
+                    rm -rf node_modules package-lock.json
                     ls -la
                     node --version
                     npm --version
@@ -29,12 +31,12 @@ pipeline {
                         docker {
                             image 'node:18-alpine'
                             reuseNode true
+                            args '-u root'  // ✅ FIX
                         }
                     }
-
                     steps {
                         sh '''
-                            #test -f build/index.html
+                            npm ci
                             npm test
                         '''
                     }
@@ -50,21 +52,28 @@ pipeline {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
                             reuseNode true
+                            args '-u root'  // ✅ Already good, but keep it
                         }
                     }
-
                     steps {
                         sh '''
-                            npm install serve
-                            node_modules/.bin/serve -s build &
-                            sleep 10
-                            npx playwright test  --reporter=html
+                            npm ci
+                            npx serve -s build &
+                            echo "Waiting for server..."
+                            sleep 5
+                            npx playwright test --reporter=html
                         '''
                     }
-
                     post {
                         always {
-                            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Playwright HTML Report', reportTitles: '', useWrapperFileDirectly: true])
+                            publishHTML([
+                                allowMissing: true,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
+                                reportDir: 'playwright-report',
+                                reportFiles: 'index.html',
+                                reportName: 'Playwright HTML Report'
+                            ])
                         }
                     }
                 }
@@ -76,12 +85,14 @@ pipeline {
                 docker {
                     image 'node:18-alpine'
                     reuseNode true
+                    args '-u root'  // ✅ FIX
                 }
             }
             steps {
                 sh '''
-                    npm install netlify-cli
-                    node_modules/.bin/netlify --version
+                    npm ci
+                    npm install -g netlify-cli
+                    netlify --version
                 '''
             }
         }
