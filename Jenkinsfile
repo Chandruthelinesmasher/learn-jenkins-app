@@ -50,7 +50,7 @@ pipeline {
                             echo "Waiting for server to start..."
                             sleep 3
 
-                            npx playwright test --reporter=html,junit
+                            npx playwright test --reporter="junit;output=test-results/junit.xml" --reporter=html
                         '''
                     }
                 }
