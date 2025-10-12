@@ -56,7 +56,6 @@ pipeline {
                         sh '''
                             echo '🧪 Running E2E tests...'
                             npm ci
-                            npm install serve
                             nohup npx serve -s build > serve.log 2>&1 &
                             sleep 10
                             npx playwright test --reporter=html
@@ -81,7 +80,7 @@ pipeline {
         stage('Deploy') {
             agent {
                 docker {
-                    image 'node:18'
+                    image 'node:18-alpine'
                     args '-u root:root'
                 }
             }
@@ -91,6 +90,9 @@ pipeline {
             }
             steps {
                 sh '''
+                    echo "🚀 Installing system dependencies for sharp..."
+                    apk add --no-cache vips-dev fftw-dev build-base python3
+
                     echo "🚀 Installing Netlify CLI..."
                     npm install -g netlify-cli@20.1.1
 
@@ -103,6 +105,13 @@ pipeline {
 
                     echo "✅ Deployment successful!"
                 '''
+            }
+            post {
+                unsuccessful {
+                    script {
+                        currentBuild.result = 'UNSTABLE'
+                    }
+                }
             }
         }
 
@@ -117,7 +126,6 @@ pipeline {
                 sh '''
                     echo '🧪 Running Prod E2E tests...'
                     npm ci
-                    npm install serve
                     nohup npx serve -s build > serve.log 2>&1 &
                     sleep 10
                     npx playwright test --reporter=html
