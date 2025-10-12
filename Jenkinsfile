@@ -2,19 +2,16 @@ pipeline {
     agent any
 
     stages {
-
         stage('Build') {
             agent {
                 docker {
                     image 'node:18-alpine'
                     args '-u root:root'
-                    reuseNode true
                 }
             }
             steps {
                 sh '''
-
-                    echo 'small change'
+                    echo '🔧 Build stage started'
                     ls -la
                     node --version
                     npm --version
@@ -27,16 +24,17 @@ pipeline {
 
         stage('Tests') {
             parallel {
-                stage('Unit tests') {
+                unitTests: {
                     agent {
                         docker {
                             image 'node:18-alpine'
                             args '-u root:root'
-                            reuseNode true
                         }
                     }
                     steps {
                         sh '''
+                            echo '🧪 Running unit tests...'
+                            npm ci
                             npm test -- --ci --reporters=default --reporters=jest-junit
                         '''
                     }
@@ -47,16 +45,17 @@ pipeline {
                     }
                 }
 
-                stage('E2E') {
+                e2eTests: {
                     agent {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
                             args '-u root:root'
-                            reuseNode true
                         }
                     }
                     steps {
                         sh '''
+                            echo '🧪 Running E2E tests...'
+                            npm ci
                             npm install serve
                             nohup npx serve -s build > serve.log 2>&1 &
                             sleep 10
@@ -84,7 +83,6 @@ pipeline {
                 docker {
                     image 'node:18'
                     args '-u root:root'
-                    reuseNode true
                 }
             }
             environment {
@@ -105,6 +103,37 @@ pipeline {
 
                     echo "✅ Deployment successful!"
                 '''
+            }
+        }
+
+        stage('Prod E2E') {
+            agent {
+                docker {
+                    image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                    args '-u root:root'
+                }
+            }
+            steps {
+                sh '''
+                    echo '🧪 Running Prod E2E tests...'
+                    npm ci
+                    npm install serve
+                    nohup npx serve -s build > serve.log 2>&1 &
+                    sleep 10
+                    npx playwright test --reporter=html
+                '''
+            }
+            post {
+                always {
+                    publishHTML([
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: false,
+                        keepAll: true,
+                        reportDir: 'playwright-report',
+                        reportFiles: 'index.html',
+                        reportName: 'Prod Playwright HTML Report'
+                    ])
+                }
             }
         }
     }
