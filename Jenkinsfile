@@ -1,17 +1,22 @@
 pipeline {
     agent any
 
+    environment {
+        NETLIFY_SITE_ID = 'PUT YOUR NETLIFY SITE ID HERE'
+        NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+    }
+
     stages {
+
         stage('Build') {
             agent {
                 docker {
                     image 'node:18-alpine'
-                    args '-u root:root'
+                    reuseNode true
                 }
             }
             steps {
                 sh '''
-                    echo '🔧 Build stage started'
                     ls -la
                     node --version
                     npm --version
@@ -24,18 +29,18 @@ pipeline {
 
         stage('Tests') {
             parallel {
-                stage('Unit Tests') {
+                stage('Unit tests') {
                     agent {
                         docker {
                             image 'node:18-alpine'
-                            args '-u root:root'
+                            reuseNode true
                         }
                     }
+
                     steps {
                         sh '''
-                            echo '🧪 Running unit tests...'
-                            npm ci
-                            npm test -- --ci --reporters=default --reporters=jest-junit
+                            #test -f build/index.html
+                            npm test
                         '''
                     }
                     post {
@@ -45,109 +50,73 @@ pipeline {
                     }
                 }
 
-                stage('E2E Tests') {
+                stage('E2E') {
                     agent {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
-                            args '-u root:root'
+                            reuseNode true
                         }
                     }
+
                     steps {
                         sh '''
-                            echo '🧪 Running E2E tests...'
-                            npm ci
-                            nohup npx serve -s build > serve.log 2>&1 &
+                            npm install serve
+                            node_modules/.bin/serve -s build &
                             sleep 10
-                            npx playwright test --reporter=html
+                            npx playwright test  --reporter=html
                         '''
                     }
+
                     post {
                         always {
-                            publishHTML([
-                                allowMissing: false,
-                                alwaysLinkToLastBuild: false,
-                                keepAll: true,
-                                reportDir: 'playwright-report',
-                                reportFiles: 'index.html',
-                                reportName: 'Playwright HTML Report'
-                            ])
+                            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Playwright Local', reportTitles: '', useWrapperFileDirectly: true])
                         }
                     }
                 }
             }
         }
 
-        stage('Deploy Staging') {
+        stage('Deploy staging') {
             agent {
                 docker {
                     image 'node:18-alpine'
-                    args '-u root:root'
+                    reuseNode true
                 }
-            }
-            environment {
-                NETLIFY_AUTH_TOKEN = credentials('netlify-token')
-                NETLIFY_SITE_ID = 'nfp_X7f3qYEMaNRpmRRdzi8P9bAhE1pwSX4R662b'
             }
             steps {
                 sh '''
-                    echo "🚀 Installing system dependencies for sharp..."
-                    apk add --no-cache vips-dev fftw-dev build-base python3
-
-                    echo "🚀 Installing Netlify CLI..."
-                    npm install -g netlify-cli@20.1.1
-
-                    echo "🚀 Deploying to Staging..."
-                    netlify deploy \
-                      --dir=build \
-                      --auth=$NETLIFY_AUTH_TOKEN \
-                      --site=$NETLIFY_SITE_ID
-
-                    echo "✅ Staging deployment complete!"
+                    npm install netlify-cli
+                    node_modules/.bin/netlify --version
+                    echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
+                    node_modules/.bin/netlify status
+                    node_modules/.bin/netlify deploy --dir=build
                 '''
             }
         }
 
-        stage('Approval for Prod Deploy') {
+        stage('Approval') {
             steps {
-                input message: '🚦 Ready to deploy to production. Approve?', ok: 'Deploy Now'
+                timeout(time: 15, unit: 'MINUTES') {
+                    input message: 'Do you wish to deploy to production?', ok: 'Yes, I am sure!'
+                }
             }
         }
 
-        stage('Deploy Prod') {
+        stage('Deploy prod') {
             agent {
                 docker {
                     image 'node:18-alpine'
-                    args '-u root:root'
+                    reuseNode true
                 }
-            }
-            environment {
-                NETLIFY_AUTH_TOKEN = credentials('netlify-token')
-                NETLIFY_SITE_ID = 'nfp_X7f3qYEMaNRpmRRdzi8P9bAhE1pwSX4R662b'
             }
             steps {
                 sh '''
-                    echo "🚀 Installing system dependencies for sharp..."
-                    apk add --no-cache vips-dev fftw-dev build-base python3
-
-                    echo "🚀 Installing Netlify CLI..."
-                    npm install -g netlify-cli@20.1.1
-
-                    echo "🔑 Deploying to Netlify..."
-                    netlify deploy \
-                      --dir=build \
-                      --prod \
-                      --auth=$NETLIFY_AUTH_TOKEN \
-                      --site=$NETLIFY_SITE_ID
-
-                    echo "✅ Production deployment successful!"
+                    npm install netlify-cli
+                    node_modules/.bin/netlify --version
+                    echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
+                    node_modules/.bin/netlify status
+                    node_modules/.bin/netlify deploy --dir=build --prod
                 '''
-            }
-            post {
-                unsuccessful {
-                    script {
-                        currentBuild.result = 'UNSTABLE'
-                    }
-                }
             }
         }
 
@@ -155,39 +124,25 @@ pipeline {
             agent {
                 docker {
                     image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
-                    args '-u root:root'
+                    reuseNode true
                 }
             }
+
+            environment {
+                CI_ENVIRONMENT_URL = 'PUT YOUR NETLIFY SITE URL HERE'
+            }
+
             steps {
                 sh '''
-                    echo '🧪 Running Prod E2E tests...'
-                    npm ci
-                    nohup npx serve -s build > serve.log 2>&1 &
-                    sleep 10
-                    npx playwright test --reporter=html
+                    npx playwright test  --reporter=html
                 '''
             }
+
             post {
                 always {
-                    publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: false,
-                        keepAll: true,
-                        reportDir: 'playwright-report',
-                        reportFiles: 'index.html',
-                        reportName: 'Prod Playwright HTML Report'
-                    ])
+                    publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Playwright E2E', reportTitles: '', useWrapperFileDirectly: true])
                 }
             }
-        }
-    }
-
-    post {
-        success {
-            echo '🎉 Pipeline completed successfully — deployed to Netlify!'
-        }
-        failure {
-            echo '❌ Pipeline failed. Check logs above.'
         }
     }
 }
