@@ -76,8 +76,8 @@ pipeline {
                 }
             }
         }
-
-        stage('Deploy') {
+        
+        stage('Deploy Staging') {
             agent {
                 docker {
                     image 'node:18-alpine'
@@ -86,7 +86,38 @@ pipeline {
             }
             environment {
                 NETLIFY_AUTH_TOKEN = credentials('netlify-token')
-                NETLIFY_SITE_ID = '74da41cd-1adf-407d-935e-94ee5855477c'
+                NETLIFY_SITE_ID = 'nfp_X7f3qYEMaNRpmRRdzi8P9bAhE1pwSX4R662b'
+            }
+            steps {
+                sh '''
+                    echo "🚀 Installing system dependencies for sharp..."
+                    apk add --no-cache vips-dev fftw-dev build-base python3
+
+                    echo "🚀 Installing Netlify CLI..."
+                    npm install -g netlify-cli@20.1.1
+
+                    echo "🚀 Deploying to Staging..."
+                    netlify deploy \
+                      --dir=build \
+                      --auth=$NETLIFY_AUTH_TOKEN \
+                      --site=$NETLIFY_SITE_ID
+
+                    echo "✅ Staging deployment complete!"
+                '''
+            }
+        }
+
+        
+        stage('Deploy prod') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    args '-u root:root'
+                }
+            }
+            environment {
+                NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+                NETLIFY_SITE_ID = 'nfp_X7f3qYEMaNRpmRRdzi8P9bAhE1pwSX4R662b'
             }
             steps {
                 sh '''
