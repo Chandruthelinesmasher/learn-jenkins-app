@@ -24,7 +24,7 @@ pipeline {
 
         stage('Tests') {
             parallel {
-                stage('Unit Tests') {
+                unitTests: {
                     agent {
                         docker {
                             image 'node:18-alpine'
@@ -45,7 +45,7 @@ pipeline {
                     }
                 }
 
-                stage('E2E Tests') {
+                e2eTests: {
                     agent {
                         docker {
                             image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
@@ -76,7 +76,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Deploy Staging') {
             agent {
                 docker {
@@ -107,8 +107,13 @@ pipeline {
             }
         }
 
-        
-        stage('Deploy prod') {
+        stage('Approval for Prod Deploy') {
+            steps {
+                input message: '🚦 Ready to deploy to production. Approve?', ok: 'Deploy Now'
+            }
+        }
+
+        stage('Deploy Prod') {
             agent {
                 docker {
                     image 'node:18-alpine'
@@ -134,7 +139,7 @@ pipeline {
                       --auth=$NETLIFY_AUTH_TOKEN \
                       --site=$NETLIFY_SITE_ID
 
-                    echo "✅ Deployment successful!"
+                    echo "✅ Production deployment successful!"
                 '''
             }
             post {
